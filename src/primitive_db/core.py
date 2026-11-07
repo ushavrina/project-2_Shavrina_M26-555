@@ -9,35 +9,39 @@ def create_table(
 ) -> dict[str, Any] | None:
     """Создает новую таблицу в метаданных.
 
-    Автоматически добавляет ID:int в начало списка столбцов.
-    Проверяет дубликаты таблиц и корректность типов данных.
+    Автоматически добавляет ID:int в начало списка столбцов,
+    только если он не был явно задан пользователем.
     """
-    # 1. Проверка на дубликат таблицы
     if table_name in metadata:
         print(f'Ошибка: Таблица "{table_name}" уже существует.')
         return None
 
-    # 2. Инициализация структуры и автоматическое добавление ID
-    parsed_columns: dict[str, str] = {"ID": "int"}
+    # Сначала проверяем, задал ли пользователь ID самостоятельно (в любом регистре)
+    user_has_id = any(col.lower().startswith("id:") for col in columns)
 
-    # 3. Парсинг и валидация колонок пользователя
+    # Если пользователь НЕ задал ID, генерируем его в начале
+    parsed_columns: dict[str, str] = {}
+    if not user_has_id:
+        parsed_columns["ID"] = "int"
+
+    # Парсим и валидируем остальные колонки пользователя
     for col in columns:
         if ":" not in col:
             print(f"Некорректное значение: {col}. Попробуйте снова.")
             return None
 
         col_name, col_type = col.split(":", 1)
-        
         if col_type not in SUPPORTED_TYPES:
             print(f"Некорректное значение: {col}. Попробуйте снова.")
             return None
 
+        # Сохраняем имя столбца в исходном регистре (например, ID или id)
         parsed_columns[col_name] = col_type
 
-    # 4. Сохранение в общий словарь метаданных
+    # Сохраняем структуру таблицы в метаданные
     metadata[table_name] = {"columns": parsed_columns}
     
-    # 5. Вывод об успешном завершении
+    # Формируем строку колонок для красивого вывода успеха
     col_strings = [f"{k}:{v}" for k, v in parsed_columns.items()]
     print(
         f'Таблица "{table_name}" успешно создана '

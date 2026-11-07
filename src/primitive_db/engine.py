@@ -9,8 +9,8 @@ DB_META_FILE = "db_meta.json"
 def print_help() -> None:
     """Выводит справочную информацию по командам режима работы с таблицами."""
     print("\n***Процесс работы с таблицей***")
-    print("Функции:")
-    print("<command> create_table <имя_таблицы> <столбец1:тип> .. - создать таблицу")
+    print("\nФункции:")
+    print("<command> create_table <имя_таблицы> <столбец1:тип> <столбец2:тип> .. - создать таблицу")  # noqa: E501
     print("<command> list_tables - показать список всех таблиц")
     print("<command> drop_table <имя_таблицы> - удалить таблицу")
     print("\nОбщие команды:")
@@ -32,7 +32,6 @@ def run() -> None:
         if not user_input:
             continue
 
-        # Надежный разбор строки на аргументы с помощью shlex
         try:
             args = shlex.split(user_input)
         except ValueError:
