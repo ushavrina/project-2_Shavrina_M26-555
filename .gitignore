@@ -3,3 +3,5 @@ dist/
 __pycache__/
 *.egg-info
 .python-version
+.ruff_cache/
+.DS_Store
