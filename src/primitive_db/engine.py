@@ -1,5 +1,6 @@
 import shlex
 
+from primitive_db.constants import META_FILE
 from primitive_db.core import (
     create_table,
     delete,
@@ -9,6 +10,7 @@ from primitive_db.core import (
     select,
     update,
 )
+from primitive_db.decorators import create_cacher
 from primitive_db.utils import (
     load_metadata,
     load_table_data,
@@ -16,7 +18,7 @@ from primitive_db.utils import (
     save_table_data,
 )
 
-DB_META_FILE = "db_meta.json"
+select_cacher = create_cacher()
 
 
 def print_help() -> None:
@@ -55,7 +57,7 @@ def run() -> None:
         try:
             args = shlex.split(user_input)
         except ValueError:
-            print("Ошибка: Некорректный синтаксический ввод (проверьте кавычки).\n")
+            print("Ошибка: Некорректный синтаксический ввод (проверьте кавычки).")
             continue
 
         command = args[0]
@@ -68,52 +70,53 @@ def run() -> None:
             continue
 
         elif command == "list_tables":
-            metadata = load_metadata(DB_META_FILE)
+            metadata = load_metadata(META_FILE)
             if not metadata:
-                print("База данных пуста (нет созданных таблиц).\n")
+                print("База данных пуста (нет созданных таблиц).")
             for table in metadata:
                 print(f"- {table}")
             print()
 
         elif command == "create_table":
             if len(args) < 2:
-                print("Ошибка: Не указано имя таблицы.\n")
+                print("Ошибка: Не указано имя таблицы.")
                 continue
             table_name = args[1]
-            metadata = load_metadata(DB_META_FILE)
+            metadata = load_metadata(META_FILE)
             updated_meta = create_table(metadata, table_name, args[2:])
             if updated_meta is not None:
-                save_metadata(DB_META_FILE, updated_meta)
+                save_metadata(META_FILE, updated_meta)
             print()
 
         elif command == "drop_table":
             if len(args) < 2:
-                print("Ошибка: Не указано имя таблицы.\n")
+                print("Ошибка: Не указано имя таблицы.")
                 continue
             table_name = args[1]
-            metadata = load_metadata(DB_META_FILE)
+            metadata = load_metadata(META_FILE)
             updated_meta = drop_table(metadata, table_name)
             if updated_meta is not None:
-                save_metadata(DB_META_FILE, updated_meta)
+                save_metadata(META_FILE, updated_meta)
+                select_cacher("", clear_cache=True)
             print()
 
         elif command in ("insert", "select", "update", "delete", "info"):
-            metadata = load_metadata(DB_META_FILE)
+            metadata = load_metadata(META_FILE)
 
-            # ПАРСИНГ ИМЕНИ ТАБЛИЦЫ
+            # БЕЗОПАСНЫЙ ПАРСИНГ ИМЕНИ ТАБЛИЦЫ
             if command == "insert":
                 if len(args) < 3 or args[1].lower() != "into":
-                    print("Ошибка: Некорректный синтаксис INSERT. Ожидается: insert into <таблица> values (...)\n")  # noqa: E501
+                    print("Ошибка: Некорректный синтаксис INSERT. Ожидается: insert into <таблица> values (...)")  # noqa: E501
                     continue
                 table_name = args[2]
             elif command in ("select", "delete"):
                 if len(args) < 3 or args[1].lower() != "from":
-                    print(f"Ошибка: Некорректный синтаксис {command.upper()}. Ожидается: {command} from <таблица> ...\n")  # noqa: E501
+                    print(f"Ошибка: Некорректный синтаксис {command.upper()}. Ожидается: {command} from <таблица> ...")  # noqa: E501
                     continue
                 table_name = args[2]
             else:
                 if len(args) < 2:
-                    print(f"Ошибка: Не указано имя таблицы для команды {command}.\n")
+                    print(f"Ошибка: Не указано имя таблицы для команды {command}.")
                     continue
                 table_name = args[1]
 
@@ -122,7 +125,15 @@ def run() -> None:
                 continue
 
             table_meta = metadata[table_name]
-            table_data = load_table_data(table_name)
+
+            # ИНТЕГРАЦИЯ КЭШИРОВАНИЯ ДЛЯ SELECT
+            if command == "select":
+                table_data = select_cacher(
+                    user_input, 
+                    lambda: load_table_data(table_name)
+                )
+            else:
+                table_data = load_table_data(table_name)
 
             # ВЫПОЛНЕНИЕ КОМАНД
             if command == "info":
@@ -143,6 +154,7 @@ def run() -> None:
                 updated_data = insert(table_name, table_meta, cleaned_values, table_data)  # noqa: E501
                 if updated_data is not None:
                     save_table_data(table_name, updated_data)
+                    select_cacher("", clear_cache=True)
                 print()
 
             elif command == "select":
@@ -177,6 +189,7 @@ def run() -> None:
                 updated_data = update(table_name, table_meta, set_args, where_args, table_data)  # noqa: E501
                 if updated_data is not None:
                     save_table_data(table_name, updated_data)
+                    select_cacher("", clear_cache=True)
                 print()
 
             elif command == "delete":
@@ -187,9 +200,10 @@ def run() -> None:
                     else:
                         print("Ошибка: Некорректный синтаксис DELETE. Ожидается ключевое слово WHERE.")  # noqa: E501
                         continue
-                updated_data = delete(table_name, table_meta, where_args, table_data)
+                updated_data = delete(table_name, table_meta, where_args, table_data)  # noqa: E501
                 if updated_data is not None:
                     save_table_data(table_name, updated_data)
+                    select_cacher("", clear_cache=True)
                 print()
 
         else:

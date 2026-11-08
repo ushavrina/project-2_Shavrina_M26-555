@@ -2,34 +2,23 @@ from typing import Any
 
 
 def parse_condition(args: list[str]) -> dict[str, str] | None:
-    """Разбирает аргументы условия WHERE.
-
-    Ожидает формат: ['имя_колонки', '=', 'значение']
-    """
+    """Разбирает аргументы условия WHERE."""
     if len(args) != 3 or args[1] != "=":
         print("Ошибка: Некорректный формат условия WHERE. Ожидается: <колонка> = <значение>")  # noqa: E501
         return None
-
     return {"column": args[0], "value": args[2]}
 
 
 def parse_set_expression(args: list[str]) -> dict[str, str] | None:
-    """Разбирает аргументы выражения SET для обновления данных.
-
-    Ожидает формат: ['имя_колонки', '=', 'значение']
-    """
+    """Разбирает аргументы выражения SET для обновления данных."""
     if len(args) != 3 or args[1] != "=":
         print("Ошибка: Некорректный формат выражения SET. Ожидается: <колонка> = <значение>")  # noqa: E501
         return None
-
     return {"column": args[0], "value": args[2]}
 
 
 def cast_value(value_str: str, target_type: str) -> Any:
-    """Приводит строковое значение к типу данных таблицы.
-
-    Строки (str) валидируются, числа и булевы значения приводятся к системным типам.
-    """
+    """Приводит строковое значение к типу данных таблицы."""
     is_quoted = (value_str.startswith('"') and value_str.endswith('"')) or \
                 (value_str.startswith("'") and value_str.endswith("'"))
 
